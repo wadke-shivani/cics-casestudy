@@ -1,0 +1,316 @@
+       IDENTIFICATION DIVISION.                                         00010000
+       PROGRAM-ID.  DB2PGM.                                             00020000
+       DATA DIVISION.                                                   00030000
+       WORKING-STORAGE SECTION.                                         00040000
+           EXEC SQL                                                     00041001
+                 INCLUDE EMP                                            00042000
+           END-EXEC                                                     00043001
+           EXEC SQL                                                     00044001
+                 INCLUDE SQLCA                                          00045000
+           END-EXEC                                                     00046001
+           EXEC SQL                                                     00047012
+                 DECLARE BROWCUR CURSOR FOR                             00048012
+                 SELECT PK,FNAME,LNAME,DEPTNO,JOBCD,BASIC,VARPAY,BDATE  00049014
+                        JDATE,EDLEVEL                                   00049112
+                 FROM EMP                                               00049312
+           END-EXEC                                                     00049412
+       COPY EM89MS.                                                     00050000
+       COPY DFHAID.                                                     00051000
+       COPY DFHBMSCA.                                                   00052000
+       01 WS-COMM.                                                      00053000
+          02 WS-COM      PIC XXX.                                       00054000
+          02 WS-COM-LEN  PIC S9(4) COMP.                                00055000
+       01 SND-TXT.                                                      00056000
+          02 SND-TEXT    PIC X(30).                                     00057000
+          02 SND-LEN     PIC S9(4) COMP.                                00058000
+       77 WS-RESP-CODE   PIC S9(8) COMP.                                00059000
+       01 WS-EMP-REC.                                                   00060012
+          05 WS-ENUM     PIC 999.                                       00070007
+          05 WS-FNAME    PIC X(10).                                     00080000
+          05 WS-LNAME    PIC X(10).                                     00090000
+       01 RDINDVAR.                                                     00105011
+          05 LNAMERI     PIC S9(4) COMP.                                00106011
+          05 VARPAYRI    PIC S9(4) COMP.                                00107011
+          05 EDLEVELRI   PIC S9(4) COMP.                                00108011
+          05 DEPTNRI     PIC S9(4) COMP.                                00109011
+          05 JOBCRI      PIC S9(4) COMP.                                00109111
+       01 WRINDVAR.                                                     00109211
+          05 LNAMEWI     PIC S9(4) COMP.                                00109311
+          05 VARPAYWI    PIC S9(4) COMP.                                00109411
+          05 EDLEVELWI   PIC S9(4) COMP.                                00109511
+          05 DEPTNWI     PIC S9(4) COMP.                                00109611
+          05 JOBCWI      PIC S9(4) COMP.                                00109711
+          05 JDATEWI     PIC S9(4) COMP.                                00109812
+       LINKAGE SECTION.                                                 00110000
+       01 DFHCOMMAREA    PIC XXX.                                       00120000
+       PROCEDURE DIVISION.                                              00130000
+           IF EIBCALEN = 0                                              00140000
+              MOVE LOW-VALUES TO EM89MO                                 00150000
+              PERFORM SEND-MAP                                          00160000
+              MOVE 'EMP' TO WS-COM                                      00170000
+              PERFORM COND-RETURN                                       00180000
+           ELSE                                                         00190000
+              PERFORM RECEIVE-MAP                                       00200000
+              EVALUATE EIBAID                                           00210000
+                 WHEN DFHPF1                                            00220000
+                    MOVE DFHBMPRO TO MSGA                               00230000
+                    PERFORM WRITE-PARA                                  00240000
+                    MOVE 'WRT' TO WS-COM                                00250000
+                    PERFORM COND-RETURN                                 00260000
+                 WHEN DFHPF2                                            00260105
+                    MOVE DFHBMPRO TO MSGA                               00260205
+                    PERFORM READ-PARA                                   00260305
+                    MOVE 'RD ' TO WS-COM                                00260405
+                    PERFORM COND-RETURN                                 00260505
+                 WHEN DFHPF3                                            00260605
+                   MOVE LOW-VALUES TO SND-TEXT                          00260705
+                   MOVE 'THANK YOU.VISIT APP AGAIN' TO SND-TEXT         00260805
+                   MOVE LENGTH OF SND-TEXT TO SND-LEN                   00260905
+                   EXEC CICS SEND TEXT                                  00261005
+                      FROM(SND-TEXT)                                    00261105
+                      LENGTH(SND-LEN)                                   00261205
+                      ERASE                                             00261305
+                      FREEKB                                            00261405
+                   END-EXEC                                             00261505
+                   EXEC CICS RETURN                                     00261605
+                   END-EXEC                                             00261705
+                 WHEN DFHPF4                                            00261807
+                   MOVE DFHCOMMAREA TO WS-COMM                          00261907
+                   IF WS-COMM = 'RD'                                    00262012
+                    PERFORM REWRITE-PARA                                00263012
+                    MOVE 'RWT' TO WS-COMM                               00263112
+                    PERFORM COND-RETURN                                 00263212
+                   ELSE                                                 00263312
+                    PERFORM READ-PARA                                   00263512
+                    MOVE 'RD ' TO WS-COM                                00263612
+                    PERFORM COND-RETURN                                 00263712
+                   END-IF                                               00263812
+                 WHEN DFHPF5                                            00263907
+                    MOVE DFHBMPRO TO MSGA                               00264007
+                    PERFORM CLR-PARA                                    00264107
+                    MOVE 'CLR' TO WS-COM                                00265007
+                    PERFORM COND-RETURN                                 00265107
+                 WHEN DFHPF6                                            00265207
+                    MOVE DFHBMPRO TO MSGA                               00265307
+                    PERFORM DEL-PARA                                    00265407
+                    MOVE 'DEL' TO WS-COM                                00265507
+                   PERFORM COND-RETURN                                  00265607
+                 WHEN DFHPF7                                            00265712
+                    MOVE DFHBMPRO TO MSGA                               00265812
+                    PERFORM OPEN-PARA                                   00265913
+                    MOVE 'BRO' TO WS-COM                                00266012
+                    PERFORM COND-RETURN                                 00266113
+                 WHEN OTHER                                             00266205
+                   MOVE DFHBMUNP TO MSGA                                00266305
+                   PERFORM OTH-PARA                                     00266405
+                   MOVE 'OTH' TO WS-COM                                 00266505
+                   PERFORM COND-RETURN                                  00267005
+              END-EVALUATE                                              00268000
+              END-IF.                                                   00268103
+              EXEC CICS RETURN                                          00269000
+              END-EXEC.                                                 00270000
+          WRITE-PARA.                                                   00280000
+              MOVE ENUMI    TO HV-PK                                    00290000
+              MOVE FNAMEI   TO HV-FNAME                                 00300002
+              MOVE LNAMEI   TO HV-LNAME                                 00310002
+              MOVE DOBI     TO HV-BDATE                                 00310102
+              MOVE DOJI     TO HV-JDATE                                 00310207
+              MOVE ESALI    TO HV-BASIC                                 00310307
+              MOVE EVARI    TO HV-VARPAY                                00310407
+              MOVE EDLEVI   TO HV-EDLEVEL                               00310607
+              MOVE JOBCI    TO HV-JOBCD                                 00310711
+              MOVE DEPTNI   TO HV-DEPTNO                                00310811
+              EXEC SQL                                                  00311000
+                   INSERT INTO EMP(PK,FNAME,LNAME,JOBCD,DEPTNO,BDATE,   00312009
+                         JDATE,BASIC,VARPAY,EDLEVEL)                    00312111
+                   VALUES(:HV-PK,:HV-FNAME,:HV-LNAME:LNAMEWI,           00312211
+                          :HV-JOBCD:JOBCWI,                             00312311
+                          :HV-DEPTNO:DEPTNWI,                           00312411
+                          :HV-BDATE,:HV-JDATE:JDATEWI,                  00312512
+                          :HV-BASIC,                                    00312611
+                          :HV-VARPAY:VARPAYWI,                          00312711
+                          :HV-EDLEVEL:EDLEVELWI)                        00312811
+              END-EXEC.                                                 00313003
+              IF HV-LNAME = SPACES OR HV-LNAME IS NUMERIC               00313111
+                 MOVE -1 TO LNAMEWI                                     00313211
+              END-IF                                                    00313311
+              IF HV-VARPAY IS NOT NUMERIC                               00313511
+                 MOVE -1 TO VARPAYWI                                    00313611
+              END-IF                                                    00313711
+              IF HV-JDATE IS NOT NUMERIC                                00313812
+                 MOVE -1 TO JDATEWI                                     00313912
+              END-IF                                                    00314012
+              IF SQLCODE = 0                                            00314100
+                 MOVE 'INSERT SUCCESSFUL' TO MSGO                       00315000
+              ELSE                                                      00316000
+                 MOVE SQLCODE             TO MSGO                       00317000
+              END-IF                                                    00318000
+              PERFORM SEND-MAP.                                         00332000
+          DEL-PARA.                                                     00332100
+              MOVE ENUMI TO HV-PK                                       00332207
+              EXEC SQL                                                  00332307
+                   DELETE FROM EMP                                      00332407
+                   WHERE PK = :HV-PK                                    00332507
+              END-EXEC                                                  00332600
+              IF SQLCODE = 0                                            00332707
+                 MOVE 'DELETE SUCCESS' TO MSGO                          00332800
+              ELSE                                                      00332900
+                 MOVE SQLCODE          TO MSGO                          00333007
+              END-IF                                                    00333100
+              PERFORM SEND-MAP.                                         00333200
+          CLR-PARA.                                                     00333300
+              MOVE LOW-VALUES TO EM89MI                                 00333407
+              PERFORM SEND-MAP.                                         00333500
+          READ-PARA.                                                    00333600
+              MOVE ENUMI   TO HV-PK                                     00333714
+              MOVE 80      TO SND-LEN                                   00334000
+              EXEC SQL                                                  00334205
+                   SELECT PK,FNAME,LNAME,BDATE,JDATE,                   00334314
+                   BASIC,VARPAY,EDLEVEL,DEPTNO,JOBCD                    00334609
+                   INTO :HV-PK,:HV-FNAME, :HV-LNAME:LNAMERI,            00334714
+                   :HV-BDATE,:HV-JDATE,:HV-BASIC,:HV-VARPAY:VARPAYRI,   00334811
+                   :HV-EDLEVEL:EDLEVELRI,                               00334911
+                    :HV-DEPTNO:DEPTNRI,                                 00335011
+                   :HV-JOBCD:JOBCRI                                     00335111
+                   FROM EMP                                             00335209
+                   WHERE PK = :HV-PK                                    00335309
+              END-EXEC.                                                 00335400
+              IF SQLCODE = 0                                            00335505
+                   MOVE HV-PK      TO ENUMO                             00335608
+                   MOVE HV-FNAME   TO FNAMEO                            00335708
+                   IF LNAMERI   = -1                                    00335811
+                      MOVE 'UNKNOWN'  TO LNAMEO                         00335911
+                   ELSE                                                 00336011
+                      MOVE HV-LNAME   TO LNAMEO                         00336111
+                   END-IF                                               00336211
+                   IF DEPTNRI   = -1                                    00336311
+                      MOVE 'UNKNOWN'   TO DEPTNO                        00336411
+                   ELSE                                                 00336511
+                      MOVE HV-DEPTNO  TO DEPTNO                         00336611
+                   END-IF                                               00336711
+                   IF JOBCRI    = -1                                    00336811
+                      MOVE 'UNKNOWN'  TO JOBCO                          00336911
+                   ELSE                                                 00337011
+                      MOVE HV-JOBCD   TO JOBCO                          00337111
+                   END-IF                                               00337211
+                   MOVE HV-BDATE   TO DOBO                              00337308
+                   MOVE HV-JDATE   TO DOJO                              00337408
+                   MOVE HV-BASIC   TO ESALO                             00337510
+                   IF VARPAYRI  = -1                                    00337611
+                      MOVE 0          TO EVARO                          00337711
+                   ELSE                                                 00337811
+                      MOVE HV-VARPAY  TO EVARO                          00337911
+                   END-IF                                               00338011
+                   IF EDLEVELRI = -1                                    00338111
+                      MOVE 0          TO EDLEVO                         00338211
+                   ELSE                                                 00338311
+                      MOVE HV-EDLEVEL TO EDLEVO                         00338411
+                   END-IF                                               00338511
+                   MOVE 'READ SUCCESSFUL' TO MSGO                       00338605
+              ELSE                                                      00338700
+                   MOVE SQLCODE        TO MSGO                          00338807
+              END-IF                                                    00338907
+              PERFORM SEND-MAP.                                         00339009
+          REWRITE-PARA.                                                 00339100
+              MOVE ENUMI   TO HV-PK                                     00339207
+              MOVE FNAMEI  TO HV-FNAME                                  00339307
+              MOVE LNAMEI  TO HV-LNAME                                  00339407
+              MOVE DOBI    TO HV-BDATE                                  00339507
+              MOVE 80      TO SND-LEN                                   00339600
+              EXEC SQL                                                  00339807
+                   UPDATE EMP                                           00339907
+                   SET FNAME = :HV-FNAME,                               00340007
+                       LNAME = :HV-LNAME,                               00340107
+                       BDATE = :HV-BDATE                                00340207
+                   WHERE PK = :HV-PK                                    00340307
+              END-EXEC                                                  00340407
+              IF SQLCODE = 0                                            00340507
+                   MOVE 'REWRITE SUCCESS' TO MSGO                       00340607
+              ELSE                                                      00340707
+                   MOVE SQLCODE           TO MSGO                       00340807
+              END-IF                                                    00341007
+              PERFORM SEND-MAP.                                         00350000
+          OTH-PARA.                                                     00454000
+              MOVE 'WRONG AID KEY' TO MSGO                              00455000
+              PERFORM SEND-MAP.                                         00456000
+          COND-RETURN.                                                  00457000
+              MOVE LENGTH OF WS-COM TO WS-COM-LEN                       00458000
+              EXEC CICS RETURN                                          00459000
+                 TRANSID(EIBTRNID)                                      00460004
+                 COMMAREA(WS-COM)                                       00470000
+                 LENGTH(WS-COM-LEN)                                     00480000
+              END-EXEC.                                                 00490000
+          OPEN-PARA.                                                    00490113
+              EXEC SQL                                                  00490213
+                 OPEN BROWCUR                                           00490313
+              END-EXEC.                                                 00490413
+              IF SQLCODE = 0                                            00490513
+                   PERFORM  BROWSE-PARA                                 00490713
+              ELSE                                                      00490913
+                   MOVE SQLCODE           TO MSGO                       00491013
+              PERFORM SEND-MAP.                                         00491113
+          BROWSE-PARA.                                                  00491212
+              MOVE ENUMI TO HV-PK                                       00491313
+              EXEC SQL                                                  00492113
+                 FETCH NEXT BROWCUR INTO :HV-PK,                        00493014
+                 :HV-FNAME,:HV-LNAME:LNAMERI,                           00493114
+                 :HV-DEPTNO:DEPTNRI,:HV-JOBCD:JOBCRI,:HV-BASIC,         00494014
+                 :HV-BDATE,:HV-JDATE,:HV-EDLEVEL:EDLEVELRI              00495014
+              END-EXEC.                                                 00496013
+              IF SQLCODE = 0 AND DFHAID NOT = DFHPF8 AND DFHAID = DFHPF800497014
+                   MOVE HV-PK      TO ENUMO                             00498014
+                   MOVE HV-FNAME   TO FNAMEO                            00499013
+                   IF LNAMERI   = -1                                    00499113
+                      MOVE 'UNKNOWN'  TO LNAMEO                         00499213
+                   ELSE                                                 00499313
+                      MOVE HV-LNAME   TO LNAMEO                         00499413
+                   END-IF                                               00499513
+                   IF DEPTNRI   = -1                                    00499613
+                      MOVE 'UNKNOWN'   TO DEPTNO                        00499713
+                   ELSE                                                 00499813
+                      MOVE HV-DEPTNO  TO DEPTNO                         00499913
+                   END-IF                                               00500013
+                   IF JOBCRI    = -1                                    00500113
+                      MOVE 'UNKNOWN'  TO JOBCO                          00500213
+                   ELSE                                                 00500313
+                      MOVE HV-JOBCD   TO JOBCO                          00500413
+                   END-IF                                               00500513
+                   MOVE HV-BDATE   TO DOBO                              00500613
+                   MOVE HV-JDATE   TO DOJO                              00500713
+                   MOVE HV-BASIC   TO ESALO                             00500813
+                   IF VARPAYRI  = -1                                    00500913
+                      MOVE 0          TO EVARO                          00501013
+                   ELSE                                                 00501113
+                      MOVE HV-VARPAY  TO EVARO                          00501213
+                   END-IF                                               00501313
+                   IF EDLEVELRI = -1                                    00501413
+                      MOVE 0          TO EDLEVO                         00501513
+                   ELSE                                                 00501613
+                      MOVE HV-EDLEVEL TO EDLEVO                         00501713
+                   END-IF                                               00501813
+                   MOVE 'PRESS F8 TO EXIT' TO MSGO                      00501913
+              ELSE                                                      00502013
+                   IF SQLCODE NOT = 0                                   00502113
+                     MOVE SQLCODE        TO MSGO                        00502213
+                   ELSE                                                 00502313
+                     PERFORM END-CUR-PARA                               00502413
+                   END-IF                                               00502513
+              END-IF                                                    00502613
+              PERFORM SEND-MAP.                                         00502713
+          END-CUR-PARA.                                                 00502812
+              EXEC SQL                                                  00502912
+                 CLOSE BROWCUR                                          00503012
+              END-EXEC.                                                 00503112
+              MOVE 'BROWSING FINISHED' TO MSGO.                         00503212
+          SEND-MAP.                                                     00504000
+              EXEC CICS SEND                                            00510000
+                 MAP('EM89M')                                           00520000
+                 MAPSET('EM89MS')                                       00530000
+                 ERASE                                                  00540000
+                 FREEKB                                                 00550000
+              END-EXEC.                                                 00560000
+          RECEIVE-MAP.                                                  00570000
+              EXEC CICS RECEIVE                                         00580000
+                 MAP('EM89M')                                           00590000
+                 MAPSET('EM89MS')                                       00600000
+              END-EXEC.                                                 00610000
